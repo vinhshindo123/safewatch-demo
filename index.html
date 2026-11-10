@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7fb">
+    <meta name="description" content="Trang theo dõi thiết bị SeSide bằng tài khoản được cấp quyền.">
+    <title>SeSide - Theo dõi thiết bị</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="config.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Điều hướng chính">
+        <a class="brand" href="#overview" aria-label="SeSide trang tổng quan">
+          <span class="brand-mark" aria-hidden="true">S</span>
+          <span>Se<span class="brand-light">Side</span></span>
+        </a>
+        <div class="sidebar-label">THEO DÕI</div>
+        <a class="nav-link active" href="#overview"><span aria-hidden="true">▦</span>Tổng quan</a>
+        <a class="nav-link" href="#location"><span aria-hidden="true">⌖</span>Vị trí</a>
+        <a class="nav-link" href="#alerts"><span aria-hidden="true">♧</span>Cảnh báo <span id="alert-count" class="nav-count">—</span></a>
+        <div class="sidebar-bottom">
+          <div class="demo-note"><span class="demo-dot"></span> Đăng nhập để xem dữ liệu</div>
+          <div class="profile">
+            <div class="avatar">ND</div>
+            <div><strong>Tài khoản</strong><small>Đã xác thực</small></div>
+          </div>
+        </div>
+      </aside>
+
+      <main id="overview" class="main-content">
+        <header class="topbar">
+          <div class="breadcrumb">Thiết bị <span>/</span> <strong id="header-device-name">Đồng hồ SeSide 01</strong></div>
+          <div class="topbar-right">
+            <button class="icon-button" type="button" aria-label="Thông báo">♧<i></i></button>
+            <div class="avatar small-avatar">ND</div>
+            <button id="logout-button" class="logout-button" type="button" hidden>Đăng xuất</button>
+          </div>
+        </header>
+
+        <section id="auth-panel" class="auth-panel card" aria-labelledby="auth-heading">
+          <p class="eyebrow">TRUY CẬP CÓ PHÂN QUYỀN</p>
+          <h1 id="auth-heading">Đăng nhập để theo dõi thiết bị</h1>
+          <p class="subheading">Chỉ tài khoản được cấp quyền xem hồ sơ này mới truy cập được dữ liệu.</p>
+          <form id="login-form" class="login-form">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="username" required>
+            <label for="password">Mật khẩu</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button id="login-button" type="submit">Đăng nhập</button>
+          </form>
+          <p id="auth-message" class="auth-message" role="status" aria-live="polite">Dữ liệu sức khỏe và vị trí chỉ tải sau khi xác thực.</p>
+        </section>
+
+        <div id="dashboard" class="page-content" hidden>
+          <section class="page-heading">
+            <div>
+              <p class="eyebrow">HỒ SƠ THEO DÕI</p>
+              <h1>Xin chào,</h1>
+              <p class="subheading">Tình trạng thiết bị và các chỉ số gần nhất.</p>
+            </div>
+            <div class="updated"><span class="live-dot"></span><span id="current-datetime">Giờ: --:-- · -- - -- - ----</span></div>
+          </section>
+
+          <section class="patient-card card" aria-label="Thông tin bệnh nhân">
+            <div class="patient-main">
+              <div class="patient-avatar" aria-hidden="true">A</div>
+              <div>
+                <div class="patient-name-row"><h2 id="patient-name">—</h2><span id="patient-status" class="status-chip"><span class="live-dot"></span>Đang tải</span></div>
+                <p class="patient-meta"><strong id="device-name">Đồng hồ SeSide 01</strong></p>
+              </div>
+            </div>
+            <div class="patient-details">
+              <div><span class="detail-label">TRẠNG THÁI KẾT NỐI</span><strong><span id="connection-status" class="connection-state">—</span></strong></div>
+              <div><span class="detail-label">PIN THIẾT BỊ</span><strong> <span class="battery-icon"><i id="battery-level"></i></span><span id="battery">—</span></strong></div>
+              <div><span class="detail-label">THEO DÕI TÉ NGÃ</span><strong><span class="check-icon">✓</span><span id="monitoring-status">—</span></strong></div>
+            </div>
+          </section>
+
+          <section class="metrics-grid" aria-label="Chỉ số sức khỏe">
+            <article class="metric-card card">
+              <div class="metric-top"><span class="metric-icon heart-icon">♥</span><span class="metric-period">HIỆN TẠI</span></div>
+              <p class="metric-label">Nhịp tim</p>
+              <div class="metric-value"><strong id="heart-rate">—</strong><span>bpm</span></div>
+              <p id="heart-rate-status" class="metric-foot">Chưa có dữ liệu nhịp tim</p>
+              <svg class="sparkline heart-spark" viewBox="0 0 170 38" role="img" aria-label="Đồ thị nhịp tim">
+                <path id="sparkline-path" d="" />
+              </svg>
+            </article>
+            <article class="metric-card card">
+              <div class="metric-top"><span class="metric-icon movement-icon">◉</span><span class="metric-period">HIỆN TẠI</span></div>
+              <p class="metric-label">SpO₂</p>
+              <div class="metric-value"><strong id="spo2">—</strong><span>%</span></div>
+              <p id="spo2-status" class="metric-foot">Chưa có dữ liệu SpO₂</p>
+              <div class="progress-track"><span id="spo2-progress" style="width:0%"></span></div>
+            </article>
+            <article class="metric-card card">
+              <div class="metric-top"><span class="metric-icon fall-icon">⌄</span><span class="metric-period">HÔM NAY</span></div>
+              <p class="metric-label">Phát hiện té ngã</p>
+              <div class="metric-value"><strong id="fall-count">—</strong><span>lần</span></div>
+              <p id="fall-status" class="metric-foot">Đang tải trạng thái</p>
+            </article>
+          </section>
+
+          <section class="content-grid">
+            <article class="card chart-card">
+              <div class="section-heading">
+                <div><h2>Nhịp tim</h2><p>Diễn biến trong 24 giờ qua</p></div>
+                <button class="select-button" type="button">24 giờ <span aria-hidden="true">⌄</span></button>
+              </div>
+              <div class="chart-summary"><strong><span id="chart-heart-rate">—</span> <small>bpm</small></strong><span id="chart-range" class="normal-range"><i></i>Chưa có dữ liệu</span></div>
+              <div class="chart-wrap">
+                <div class="y-labels" aria-hidden="true"><span>120</span><span>100</span><span>80</span><span>60</span></div>
+                <svg class="heart-chart" viewBox="0 0 700 190" preserveAspectRatio="none" role="img" aria-label="Biểu đồ nhịp tim 24 giờ">
+                  <defs><linearGradient id="area-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#f27879" stop-opacity=".2"/><stop offset="100%" stop-color="#f27879" stop-opacity="0"/></linearGradient></defs>
+                  <path class="chart-gridline" d="M0 25H700M0 70H700M0 115H700M0 160H700"/>
+                  <path id="chart-area" class="chart-area" d=""/>
+                  <path id="chart-line" class="chart-line" d=""/>
+                  <circle id="chart-point" class="chart-point" cx="0" cy="0" r="0"/>
+                </svg>
+                <div class="x-labels" aria-hidden="true"><span>24 giờ trước</span><span>18 giờ</span><span>12 giờ</span><span>6 giờ</span><span>Hiện tại</span></div>
+              </div>
+              <div class="chart-legend"><span><i></i>Nhịp tim (bpm)</span><span>Phạm vi tham khảo: 60–100 bpm</span></div>
+            </article>
+
+            <article id="location" class="card location-card">
+              <div class="section-heading">
+                <div><h2>Vị trí thiết bị</h2><p>Vị trí GPS nếu thiết bị đã gửi dữ liệu</p></div>
+                <span id="location-status" class="location-status"><i></i>Chưa có dữ liệu</span>
+              </div>
+              <div id="map-container" class="map-placeholder" aria-label="Bản đồ vị trí thiết bị">
+                <iframe id="map-iframe" title="Bản đồ vị trí thiết bị" loading="lazy" referrerpolicy="no-referrer" hidden></iframe>
+                <div class="map-road road-one"></div><div class="map-road road-two"></div><div class="map-road road-three"></div>
+                <div class="map-block block-one"></div><div class="map-block block-two"></div><div class="map-block block-three"></div><div class="map-block block-four"></div>
+                <div id="map-label" class="map-label label-home">BẢN ĐỒ MINH HỌA</div>
+                <div class="map-pin"><span>⌖</span></div>
+                <a id="map-link" class="map-caption" href="#" target="_blank" rel="noopener noreferrer" hidden><span class="pin-mini">⌖</span>Mở bản đồ lớn</a>
+              </div>
+              <div class="location-detail"><span class="location-icon">⌖</span><div><strong id="location-coordinates">Chưa có tọa độ</strong><small id="location-updated">Chỉ hiển thị sau khi xác thực</small></div></div>
+            </article>
+          </section>
+
+          <section id="alerts" class="card alerts-card">
+            <div class="section-heading">
+              <div><h2>Cảnh báo gần đây</h2><p>Sự kiện mới nhất của thiết bị</p></div>
+              <span class="alert-limit">3 cảnh báo gần nhất</span>
+            </div>
+            <div id="alerts-list"></div>
+          </section>
+
+          <footer class="page-footer">
+            <span>SeSide · Nền tảng theo dõi sức khỏe và an toàn</span>
+            <span>Theo dõi nhịp tim, trạng thái thiết bị, vị trí GPS và cảnh báo.</span>
+          </footer>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
