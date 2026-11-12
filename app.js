@@ -136,7 +136,10 @@ function renderAlerts(alerts) {
 
     const symbol = document.createElement("div");
     symbol.className = "alert-symbol";
-    symbol.textContent = alert.isUrgent ? "!" : "i";
+    const symbolIcon = document.createElement("i");
+    symbolIcon.className = `bi ${alert.isUrgent ? "bi-exclamation-triangle-fill" : "bi-info-circle-fill"}`;
+    symbolIcon.setAttribute("aria-hidden", "true");
+    symbol.append(symbolIcon);
 
     const copy = document.createElement("div");
     copy.className = "alert-copy";
@@ -241,37 +244,42 @@ function renderDashboard(payload) {
   const locationCoordinates = document.querySelector("#location-coordinates");
   const mapLink = document.querySelector("#map-link");
   const mapContainer = document.querySelector("#map-container");
-  const mapFrame = document.querySelector("#map-iframe");
+  const mapNode = document.querySelector("#satellite-map");
   if (hasLocation) {
     locationStatus.lastChild.textContent = "Có tọa độ GPS";
     locationStatus.classList.remove("no-location");
     locationCoordinates.textContent = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
     document.querySelector("#location-updated").textContent =
       `Cập nhật: ${formatDateTime(device.locationUpdatedAt || device.lastUpdated)}`;
-    const delta = 0.005;
-    const bounds = [
-      Math.max(-180, longitude - delta),
-      Math.max(-90, latitude - delta),
-      Math.min(180, longitude + delta),
-      Math.min(90, latitude + delta),
-    ];
-    const mapParams = new URLSearchParams({
-      bbox: bounds.join(","),
-      layer: "mapnik",
-      marker: `${latitude},${longitude}`,
-    });
-    mapFrame.src = `https://www.openstreetmap.org/export/embed.html?${mapParams}`;
-    mapFrame.hidden = false;
+    satelliteMap?.remove();
     mapContainer.classList.add("has-gps");
-    mapLink.href = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`;
+    mapLink.href = `https://www.google.com/maps?q=${latitude},${longitude}&t=k`;
     mapLink.hidden = false;
+    if (window.L) {
+      mapNode.hidden = false;
+      satelliteMap = window.L.map(mapNode).setView([latitude, longitude], 16);
+      window.L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        {
+          maxZoom: 19,
+          attribution: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+        },
+      ).addTo(satelliteMap);
+      window.L.marker([latitude, longitude]).addTo(satelliteMap)
+        .bindPopup("Vị trí thiết bị").openPopup();
+    } else {
+      mapNode.hidden = true;
+      document.querySelector("#location-updated").textContent =
+        "Không tải được thư viện bản đồ vệ tinh. Hãy kiểm tra kết nối Internet.";
+    }
   } else {
     locationStatus.lastChild.textContent = "Chưa có GPS";
     locationStatus.classList.add("no-location");
     locationCoordinates.textContent = "Thiết bị chưa gửi tọa độ";
     document.querySelector("#location-updated").textContent = "Bản đồ phía trên chỉ là minh họa; chưa có GPS trong database";
-    mapFrame.removeAttribute("src");
-    mapFrame.hidden = true;
+    satelliteMap?.remove();
+    satelliteMap = undefined;
+    mapNode.hidden = true;
     mapContainer.classList.remove("has-gps");
     mapLink.hidden = true;
   }
@@ -284,6 +292,7 @@ function renderDashboard(payload) {
 
 let client;
 let dashboardLoad;
+let satelliteMap;
 
 async function loadDashboard() {
   if (dashboardLoad) return dashboardLoad;
