@@ -6,8 +6,12 @@
     <meta name="theme-color" content="#f5f7fb">
     <meta name="description" content="Trang theo dõi thiết bị SeSide bằng tài khoản được cấp quyền.">
     <title>SeSide - Theo dõi thiết bị</title>
+    <link rel="icon" href="logo.jpg" type="image/jpeg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
     <script src="config.js" defer></script>
     <script src="app.js" defer></script>
   </head>
@@ -15,13 +19,13 @@
     <div class="app-shell">
       <aside class="sidebar" aria-label="Điều hướng chính">
         <a class="brand" href="#overview" aria-label="SeSide trang tổng quan">
-          <span class="brand-mark" aria-hidden="true">S</span>
+          <span class="brand-mark"><img src="logo.jpg" alt=""></span>
           <span>Se<span class="brand-light">Side</span></span>
         </a>
         <div class="sidebar-label">THEO DÕI</div>
-        <a class="nav-link active" href="#overview"><span aria-hidden="true">▦</span>Tổng quan</a>
-        <a class="nav-link" href="#location"><span aria-hidden="true">⌖</span>Vị trí</a>
-        <a class="nav-link" href="#alerts"><span aria-hidden="true">♧</span>Cảnh báo <span id="alert-count" class="nav-count">—</span></a>
+        <a class="nav-link active" href="#overview"><i class="bi bi-grid-1x2-fill" aria-hidden="true"></i>Tổng quan</a>
+        <a class="nav-link" href="#location"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i>Vị trí</a>
+        <a class="nav-link" href="#alerts"><i class="bi bi-bell-fill" aria-hidden="true"></i>Cảnh báo <span id="alert-count" class="nav-count">—</span></a>
         <div class="sidebar-bottom">
           <div class="demo-note"><span class="demo-dot"></span> Đăng nhập để xem dữ liệu</div>
           <div class="profile">
@@ -35,7 +39,7 @@
         <header class="topbar">
           <div class="breadcrumb">Thiết bị <span>/</span> <strong id="header-device-name">Đồng hồ SeSide 01</strong></div>
           <div class="topbar-right">
-            <button class="icon-button" type="button" aria-label="Thông báo">♧<i></i></button>
+            <button class="icon-button" type="button" aria-label="Thông báo"><i class="bi bi-bell-fill" aria-hidden="true"></i><i class="notification-dot"></i></button>
             <div class="avatar small-avatar">ND</div>
             <button id="logout-button" class="logout-button" type="button" hidden>Đăng xuất</button>
           </div>
@@ -76,13 +80,13 @@
             <div class="patient-details">
               <div><span class="detail-label">TRẠNG THÁI KẾT NỐI</span><strong><span id="connection-status" class="connection-state">—</span></strong></div>
               <div><span class="detail-label">PIN THIẾT BỊ</span><strong> <span class="battery-icon"><i id="battery-level"></i></span><span id="battery">—</span></strong></div>
-              <div><span class="detail-label">THEO DÕI TÉ NGÃ</span><strong><span class="check-icon">✓</span><span id="monitoring-status">—</span></strong></div>
+              <div><span class="detail-label">THEO DÕI TÉ NGÃ</span><strong><span class="check-icon"><i class="bi bi-check-lg" aria-hidden="true"></i></span><span id="monitoring-status">—</span></strong></div>
             </div>
           </section>
 
           <section class="metrics-grid" aria-label="Chỉ số sức khỏe">
             <article class="metric-card card">
-              <div class="metric-top"><span class="metric-icon heart-icon">♥</span><span class="metric-period">HIỆN TẠI</span></div>
+              <div class="metric-top"><span class="metric-icon heart-icon"><i class="bi bi-heart-fill" aria-hidden="true"></i></span><span class="metric-period">HIỆN TẠI</span></div>
               <p class="metric-label">Nhịp tim</p>
               <div class="metric-value"><strong id="heart-rate">—</strong><span>bpm</span></div>
               <p id="heart-rate-status" class="metric-foot">Chưa có dữ liệu nhịp tim</p>
@@ -91,14 +95,14 @@
               </svg>
             </article>
             <article class="metric-card card">
-              <div class="metric-top"><span class="metric-icon movement-icon">◉</span><span class="metric-period">HIỆN TẠI</span></div>
+              <div class="metric-top"><span class="metric-icon movement-icon"><i class="bi bi-droplet-half" aria-hidden="true"></i></span><span class="metric-period">HIỆN TẠI</span></div>
               <p class="metric-label">SpO₂</p>
               <div class="metric-value"><strong id="spo2">—</strong><span>%</span></div>
               <p id="spo2-status" class="metric-foot">Chưa có dữ liệu SpO₂</p>
               <div class="progress-track"><span id="spo2-progress" style="width:0%"></span></div>
             </article>
             <article class="metric-card card">
-              <div class="metric-top"><span class="metric-icon fall-icon">⌄</span><span class="metric-period">HÔM NAY</span></div>
+              <div class="metric-top"><span class="metric-icon fall-icon"><i class="bi bi-person-fill-exclamation" aria-hidden="true"></i></span><span class="metric-period">HÔM NAY</span></div>
               <p class="metric-label">Phát hiện té ngã</p>
               <div class="metric-value"><strong id="fall-count">—</strong><span>lần</span></div>
               <p id="fall-status" class="metric-foot">Đang tải trạng thái</p>
@@ -109,7 +113,7 @@
             <article class="card chart-card">
               <div class="section-heading">
                 <div><h2>Nhịp tim</h2><p>Diễn biến trong 24 giờ qua</p></div>
-                <button class="select-button" type="button">24 giờ <span aria-hidden="true">⌄</span></button>
+                <button class="select-button" type="button">24 giờ <i class="bi bi-chevron-down" aria-hidden="true"></i></button>
               </div>
               <div class="chart-summary"><strong><span id="chart-heart-rate">—</span> <small>bpm</small></strong><span id="chart-range" class="normal-range"><i></i>Chưa có dữ liệu</span></div>
               <div class="chart-wrap">
@@ -132,14 +136,14 @@
                 <span id="location-status" class="location-status"><i></i>Chưa có dữ liệu</span>
               </div>
               <div id="map-container" class="map-placeholder" aria-label="Bản đồ vị trí thiết bị">
-                <iframe id="map-iframe" title="Bản đồ vị trí thiết bị" loading="lazy" referrerpolicy="no-referrer" hidden></iframe>
+                <div id="satellite-map" class="satellite-map" role="application" aria-label="Bản đồ vệ tinh vị trí thiết bị" hidden></div>
                 <div class="map-road road-one"></div><div class="map-road road-two"></div><div class="map-road road-three"></div>
                 <div class="map-block block-one"></div><div class="map-block block-two"></div><div class="map-block block-three"></div><div class="map-block block-four"></div>
                 <div id="map-label" class="map-label label-home">BẢN ĐỒ MINH HỌA</div>
-                <div class="map-pin"><span>⌖</span></div>
-                <a id="map-link" class="map-caption" href="#" target="_blank" rel="noopener noreferrer" hidden><span class="pin-mini">⌖</span>Mở bản đồ lớn</a>
+                <div class="map-pin"><i class="bi bi-crosshair" aria-hidden="true"></i></div>
+                <a id="map-link" class="map-caption" href="#" target="_blank" rel="noopener noreferrer" hidden><i class="bi bi-crosshair pin-mini" aria-hidden="true"></i>Mở bản đồ lớn</a>
               </div>
-              <div class="location-detail"><span class="location-icon">⌖</span><div><strong id="location-coordinates">Chưa có tọa độ</strong><small id="location-updated">Chỉ hiển thị sau khi xác thực</small></div></div>
+              <div class="location-detail"><span class="location-icon"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i></span><div><strong id="location-coordinates">Chưa có tọa độ</strong><small id="location-updated">Chỉ hiển thị sau khi xác thực</small></div></div>
             </article>
           </section>
 
