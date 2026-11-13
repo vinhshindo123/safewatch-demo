@@ -6,6 +6,8 @@ const loginForm = document.querySelector("#login-form");
 const loginButton = document.querySelector("#login-button");
 const logoutButton = document.querySelector("#logout-button");
 const authMessage = document.querySelector("#auth-message");
+const loginLoading = document.querySelector("#login-loading");
+const loginButtonLabel = loginButton.querySelector(".login-button-label");
 const config = window.SAFEWATCH_CONFIG;
 
 function showMessage(message, isError = false) {
@@ -13,10 +15,20 @@ function showMessage(message, isError = false) {
   authMessage.classList.toggle("error", isError);
 }
 
+function setLoginLoading(isLoading) {
+  loginButton.disabled = isLoading;
+  loginButton.setAttribute("aria-busy", String(isLoading));
+  loginButton.setAttribute("aria-label", isLoading ? "Đang đăng nhập..." : "Đăng nhập");
+  loginButtonLabel.textContent = isLoading ? "Đang đăng nhập..." : "Đăng nhập";
+  loginLoading.hidden = !isLoading;
+  loginLoading.setAttribute("aria-hidden", String(!isLoading));
+}
+
 function setAuthenticated(isAuthenticated) {
   authPanel.hidden = isAuthenticated;
   dashboard.hidden = !isAuthenticated;
   logoutButton.hidden = !isAuthenticated;
+  document.body.classList.toggle("is-authenticated", isAuthenticated);
 }
 
 function formatTime(value) {
@@ -42,9 +54,9 @@ function formatDateTime(value) {
 }
 
 function formatDataTimestamp(value) {
-  if (!value) return "Giờ: Chưa có dữ liệu cập nhật";
+  if (!value) return "Chưa có dữ liệu mới";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Giờ: Chưa có dữ liệu cập nhật";
+  if (Number.isNaN(date.getTime())) return "Chưa có dữ liệu mới";
   const time = new Intl.DateTimeFormat("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -54,8 +66,26 @@ function formatDataTimestamp(value) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(date).replace(/\//g, " - ");
-  return `Giờ: ${time} · ${dateText}`;
+  }).format(date);
+  return `Cập nhật gần nhất · ${time}, ${dateText}`;
+}
+
+function getAlertSeverity(alert) {
+  const severity = String(alert.severity || "").trim().toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ");
+  if (!severity && alert.isUrgent) return "high";
+  if (["critical", "urgent", "high", "cao", "nghiem trong"].includes(severity)) {
+    return "high";
+  }
+  if (["medium", "moderate", "vua", "trung binh"].includes(severity)) {
+    return "medium";
+  }
+  if (["low", "minor", "thap"].includes(severity)) {
+    return "low";
+  }
+  return "info";
 }
 
 function asNumber(value) {
@@ -83,8 +113,8 @@ function displayConnection(value, lastUpdated) {
   return { label: "Chưa rõ trạng thái", status: "warning" };
 }
 
-function makeChart(values) {
-  if (!values.length) {
+function makeChart(readings, startTime, endTime) {
+  if (!readings.length) {
     document.querySelector("#chart-line").setAttribute("d", "");
     document.querySelector("#chart-area").setAttribute("d", "");
     document.querySelector("#chart-point").setAttribute("r", "0");
@@ -92,9 +122,12 @@ function makeChart(values) {
     return;
   }
 
-  const points = values.map((value, index) => {
-    const x = values.length < 2 ? 350 : (index / (values.length - 1)) * 700;
-    const y = 160 - ((Math.max(60, Math.min(120, value)) - 60) / 60) * 135;
+  const duration = endTime - startTime;
+  const points = readings.map((reading) => {
+    const x = duration > 0
+      ? Math.max(0, Math.min(700, ((reading.time - startTime) / duration) * 700))
+      : 350;
+    const y = 160 - ((Math.max(60, Math.min(120, reading.value)) - 60) / 60) * 135;
     return [x, y];
   });
   const line = points.map(([x, y], index) => `${index ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
@@ -109,12 +142,57 @@ function makeChart(values) {
   point.setAttribute("cy", lastY.toFixed(1));
   point.setAttribute("r", "4");
 
-  const sparklinePoints = values.map((value, index) => {
-    const x = values.length < 2 ? 85 : (index / (values.length - 1)) * 170;
-    const y = 34 - ((Math.max(60, Math.min(120, value)) - 60) / 60) * 30;
+  const sparklinePoints = readings.map((reading, index) => {
+    const x = readings.length < 2 ? 85 : (index / (readings.length - 1)) * 170;
+    const y = 34 - ((Math.max(60, Math.min(120, reading.value)) - 60) / 60) * 30;
     return `${index ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`;
   });
   document.querySelector("#sparkline-path").setAttribute("d", sparklinePoints.join(" "));
+}
+
+function renderHeartRateChart(history) {
+  const hours = Number(document.querySelector("#heart-range-select").value);
+  const now = Date.now();
+  const startTime = now - hours * 60 * 60 * 1000;
+  const readings = history
+    .map((reading) => ({
+      value: asNumber(reading.heartRate),
+      time: new Date(reading.timestamp || reading.eventAt || reading.time || "").getTime(),
+    }))
+    .filter((reading) =>
+      reading.value !== null &&
+      Number.isFinite(reading.time) &&
+      reading.time >= startTime &&
+      reading.time <= now,
+    )
+    .sort((left, right) => left.time - right.time);
+  const latest = readings.length ? readings[readings.length - 1].value : null;
+  const rangeLabel = `${hours} giờ`;
+
+  document.querySelector("#chart-period-label").textContent =
+    `Diễn biến trong ${rangeLabel} gần nhất`;
+  document.querySelector(".heart-chart").setAttribute(
+    "aria-label",
+    `Biểu đồ nhịp tim ${rangeLabel} gần nhất`,
+  );
+  document.querySelector("#chart-heart-rate").textContent = latest === null ? "—" : String(latest);
+  document.querySelector("#chart-range").lastChild.textContent =
+    latest === null ? `Chưa có dữ liệu trong ${rangeLabel}` : "Ngưỡng tham khảo 60–100 bpm";
+  document.querySelector("#chart-x-labels").replaceChildren(
+    ...Array.from({ length: 5 }, (_, index) => {
+      const label = document.createElement("span");
+      const remainingMinutes = Math.round(hours * 60 * (1 - index / 4));
+      label.textContent = remainingMinutes === 0
+        ? "Hiện tại"
+        : remainingMinutes % 60 === 0
+          ? `${remainingMinutes / 60} giờ`
+          : remainingMinutes < 60
+            ? `${remainingMinutes} phút`
+            : `${Math.floor(remainingMinutes / 60)} giờ ${remainingMinutes % 60} phút`;
+      return label;
+    }),
+  );
+  makeChart(readings, startTime, now);
 }
 
 function renderAlerts(alerts) {
@@ -131,13 +209,22 @@ function renderAlerts(alerts) {
   }
 
   for (const alert of visibleAlerts) {
-    const row = document.createElement("div");
+    const severity = getAlertSeverity(alert);
+    const item = document.createElement("details");
+    item.className = `alert-item severity-${severity}`;
+    const row = document.createElement("summary");
     row.className = "alert-row";
 
     const symbol = document.createElement("div");
     symbol.className = "alert-symbol";
     const symbolIcon = document.createElement("i");
-    symbolIcon.className = `bi ${alert.isUrgent ? "bi-exclamation-triangle-fill" : "bi-info-circle-fill"}`;
+    const severityIcons = {
+      high: "bi-exclamation-triangle-fill",
+      medium: "bi-exclamation-circle-fill",
+      low: "bi-info-circle-fill",
+      info: "bi-info-circle-fill",
+    };
+    symbolIcon.className = `bi ${severityIcons[severity]}`;
     symbolIcon.setAttribute("aria-hidden", "true");
     symbol.append(symbolIcon);
 
@@ -156,8 +243,22 @@ function renderAlerts(alerts) {
     const time = document.createElement("time");
     time.dateTime = alert.eventAt || "";
     time.textContent = formatTime(alert.eventAt);
-    row.append(symbol, copy, type, time);
-    list.append(row);
+    const expandIcon = document.createElement("i");
+    expandIcon.className = "bi bi-chevron-down alert-expand";
+    expandIcon.setAttribute("aria-hidden", "true");
+    row.append(symbol, copy, type, time, expandIcon);
+
+    const details = document.createElement("div");
+    details.className = "alert-details";
+    const detailMessage = document.createElement("p");
+    detailMessage.textContent = alert.message || alert.type || "Cảnh báo";
+    const detailTime = document.createElement("span");
+    detailTime.textContent = `Thời gian: ${formatDateTime(alert.eventAt)}`;
+    const detailStatus = document.createElement("span");
+    detailStatus.textContent = `Trạng thái: ${alert.status || "Không rõ trạng thái"}`;
+    details.append(detailMessage, detailTime, detailStatus);
+    item.append(row, details);
+    list.append(item);
   }
 }
 
@@ -169,6 +270,7 @@ function renderDashboard(payload) {
   const readings = history
     .map((reading) => asNumber(reading.heartRate))
     .filter((value) => value !== null);
+  heartRateHistory = history;
   const currentHeartRate = asNumber(device.heartRate);
   const historyHeartRate = readings.length ? readings[readings.length - 1] : null;
   const displayedHeartRate = currentHeartRate === null ? historyHeartRate : currentHeartRate;
@@ -177,7 +279,6 @@ function renderDashboard(payload) {
   const deviceName = device.name || `Đồng hồ của ${patient.fullName || "bệnh nhân"}`;
   document.querySelector(".patient-avatar").textContent =
     (patient.fullName || "S").trim().charAt(0).toLocaleUpperCase("vi-VN");
-  document.querySelector("#header-device-name").textContent = deviceName;
   document.querySelector("#device-name").textContent = deviceName;
   document.querySelector("#patient-status").lastChild.textContent =
     patient.monitoringStatus === "active" ? "Đang theo dõi" : "Theo dõi tạm dừng";
@@ -202,16 +303,13 @@ function renderDashboard(payload) {
 
   const heartRateText = displayedHeartRate === null ? "—" : String(displayedHeartRate);
   document.querySelector("#heart-rate").textContent = heartRateText;
-  document.querySelector("#chart-heart-rate").textContent = heartRateText;
   document.querySelector("#heart-rate-status").textContent =
     displayedHeartRate === null
       ? "Chưa có dữ liệu nhịp tim"
       : displayedHeartRate >= 60 && displayedHeartRate <= 100
         ? "Trong ngưỡng tham khảo"
         : "Ngoài ngưỡng tham khảo";
-  document.querySelector("#chart-range").lastChild.textContent =
-    displayedHeartRate === null ? "Chưa có dữ liệu" : "Ngưỡng tham khảo 60–100 bpm";
-  makeChart(readings);
+  renderHeartRateChart(history);
 
   const recentFalls = alerts.filter((alert) => {
     const isFall = String(alert.type || "").toLowerCase().replace(/_/g, "") === "fall";
@@ -293,6 +391,11 @@ function renderDashboard(payload) {
 let client;
 let dashboardLoad;
 let satelliteMap;
+let heartRateHistory = [];
+
+document.querySelector("#heart-range-select").addEventListener("change", () => {
+  renderHeartRateChart(heartRateHistory);
+});
 
 async function loadDashboard() {
   if (dashboardLoad) return dashboardLoad;
@@ -343,7 +446,7 @@ if (
 
   loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    loginButton.disabled = true;
+    setLoginLoading(true);
     showMessage("Đang xác thực tài khoản…");
     try {
       const formData = new FormData(loginForm);
@@ -359,7 +462,7 @@ if (
     } catch (error) {
       showMessage(error.message || "Không thể kết nối Supabase.", true);
     } finally {
-      loginButton.disabled = false;
+      setLoginLoading(false);
     }
   });
 
